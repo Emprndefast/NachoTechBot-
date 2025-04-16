@@ -1,21 +1,46 @@
 const TelegramBot = require('node-telegram-bot-api');
+const axios = require('axios');
 
-// Reemplaza con el token que te dio BotFather
-const token = '7568086757:AAEydV49DBzLELpuvcGZpQ9jTlPZFPVcxRI';
+const token = process.env.TELEGRAM_TOKEN;
+const apiKey = process.env.IMEICHECK_API_KEY;
 
 const bot = new TelegramBot(token, { polling: true });
 
 bot.onText(/\/start/, (msg) => {
-  bot.sendMessage(msg.chat.id, '¡Hola! Envía un IMEI y te mostraré los datos del dispositivo.');
+  bot.sendMessage(msg.chat.id, '¡Bienvenido! Envía un IMEI para consultar.');
 });
 
-bot.on('message', (msg) => {
+bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
-  const text = msg.text.trim();
+  const imei = msg.text.trim();
 
-  // Verificamos si es un IMEI válido (14 o 15 dígitos)
-  if (/^\d{14,15}$/.test(text)) {
-    bot.sendMessage(chatId, 'Consultando IMEI, por favor espera...');
-    bot.sendMessage(chatId, 'Resultado del IMEI: \n- Modelo: iPhone 12 Pro\n- Color: Graphite\n- FMI: OFF\n- Estado: CLEAN');
+  if (!/^\d{14,15}$/.test(imei)) {
+    bot.sendMessage(chatId, 'Por favor, ingresa un IMEI válido de 14 o 15 dígitos.');
+    return;
+  }
+
+  bot.sendMessage(chatId, `Consultando IMEI: ${imei}...`);
+
+  try {
+    const response = await axios.get(`https://alpha.imeicheck.com/api/modelBrandName`, {
+      params: {
+        imei: imei,
+        format: 'json'
+      },
+      headers: {
+        'Authorization': `Bearer ${apiKey}`
+      }
+    });
+
+    const data = response.data;
+
+    if (data && data.model && data.brand) {
+      bot.sendMessage(chatId, `Resultado del IMEI:\nModelo: ${data.model}\nMarca: ${data.brand}`);
+    } else {
+      bot.sendMessage(chatId, 'No se encontró información para este IMEI.');
+    }
+  } catch (error) {
+    console.error(error);
+    bot.sendMessage(chatId, 'Error al consultar el IMEI. Intenta más tarde.');
   }
 });

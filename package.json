@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "main": "bot.js",
   "dependencies": {
+    "axios": "^0.21.1",
     "node-telegram-bot-api": "^0.61.0"
   }
 }
+
