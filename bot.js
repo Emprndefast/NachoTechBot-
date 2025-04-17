@@ -4,7 +4,7 @@ const axios = require('axios');
 const token = process.env.TELEGRAM_TOKEN;
 const sickwApiKey = '3TI-MD8-GCQ-UHM-BGI-FRA-5I6-1GD';
 const sickwServiceID = '3';
-const format = 'beta';
+const format = 'json';
 
 const bot = new TelegramBot(token, { polling: true });
 
@@ -15,7 +15,10 @@ const mainMenu = {
       [{ text: '🧰 Descargar Tools', callback_data: 'tools' }],
       [{ text: '💰 Consultar Balance', callback_data: 'balance' }],
       [{ text: '📰 Canal Noticias', url: 'https://t.me/NachoTechRd' }],
-      [{ text: '📋 Lista de Servicios', callback_data: 'services' }]  // Nueva opción en el menú
+      [{ text: '📋 Lista de Servicios', callback_data: 'services' }],
+      [{ text: '⚙️ Estado del Dispositivo', callback_data: 'deviceStatus' }],
+      [{ text: '🔐 Estado de Bloqueo SIM', callback_data: 'simLockStatus' }],
+      [{ text: '🔧 Reparaciones Actuales', callback_data: 'currentRepairs' }],
     ]
   }
 };
@@ -60,7 +63,6 @@ bot.on('callback_query', async (callbackQuery) => {
     }
   }
 
-  // Nueva opción para mostrar la lista de servicios
   if (data === 'services') {
     const services = [
       { name: 'APPLE SOLD BY & COVERAGE', price: '2.40' },
@@ -75,7 +77,6 @@ bot.on('callback_query', async (callbackQuery) => {
       { name: 'MOTOROLA INFO', price: '0.08' },
       { name: 'HUAWEI INFO', price: '0.10' },
       { name: 'ALCATEL INFO', price: '0.10' },
-      // Continúa agregando los servicios aquí...
     ];
 
     let servicesMessage = '🔧 *Lista de Servicios Disponibles:*\n\n';
@@ -84,6 +85,21 @@ bot.on('callback_query', async (callbackQuery) => {
     });
 
     bot.sendMessage(msg.chat.id, servicesMessage, { parse_mode: 'Markdown', reply_markup: backButton.reply_markup });
+  }
+
+  if (data === 'deviceStatus') {
+    bot.sendMessage(msg.chat.id, '🔍 Consultando estado del dispositivo...', backButton);
+    // Aquí agregaríamos el código para verificar el estado del dispositivo usando ADB o una API externa
+  }
+
+  if (data === 'simLockStatus') {
+    bot.sendMessage(msg.chat.id, '🔍 Consultando estado de bloqueo SIM...', backButton);
+    // Agregar código para verificar el estado del bloqueo SIM de un dispositivo
+  }
+
+  if (data === 'currentRepairs') {
+    bot.sendMessage(msg.chat.id, '🔧 Mostrando reparaciones actuales...', backButton);
+    // Aquí podrías agregar la lógica para mostrar las reparaciones actuales en curso
   }
 });
 
@@ -122,37 +138,4 @@ bot.on('new_chat_members', (msg) => {
       }, 60 * 1000);
     });
   });
-});
-
-bot.on('message', async (msg) => {
-  const chatId = msg.chat.id;
-  if (!msg.text || msg.text.startsWith('/')) return;
-
-  const imei = msg.text.trim();
-  if (!/^\d{14,15}$/.test(imei)) return;
-
-  bot.sendMessage(chatId, `🔍 Consultando IMEI: *${imei}*...`, { parse_mode: 'Markdown' });
-
-  try {
-    const url = `https://sickw.com/api.php?format=${format}&key=${sickwApiKey}&imei=${imei}&service=${sickwServiceID}`;
-    const response = await axios.get(url);
-
-    const data = response.data;
-    if (data.status === 'success') {
-      const r = data.result;
-      const respuesta = 
-`📱 *Resultado del IMEI:*
-🆔 IMEI: ${r.IMEI}
-🏭 Marca: ${r.Manufacturer}
-📦 Modelo: ${r['Model Name']}
-🔢 Código Modelo: ${r['Model Code']}`;
-
-      bot.sendMessage(chatId, respuesta, { parse_mode: 'Markdown' });
-    } else {
-      bot.sendMessage(chatId, '❌ No se encontró información o el servicio no es instantáneo.', backButton);
-    }
-  } catch (error) {
-    console.error(error);
-    bot.sendMessage(chatId, '⚠️ Error al consultar el IMEI. Intenta más tarde.', backButton);
-  }
 });
