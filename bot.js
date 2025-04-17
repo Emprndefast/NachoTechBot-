@@ -88,7 +88,10 @@ bot.on('message', async (msg) => {
       bot.sendMessage(chatId, 'No se encontró información para este IMEI.', backButton);
     }
   } catch (error) {
-    console.error(error.response?.data || error.message);
+    console.error('Error al consultar el IMEI:', error.message);
+    if (error.response) {
+      console.error('Detalles de la respuesta de la API:', error.response.data);
+    }
     bot.sendMessage(chatId, 'Error al consultar el IMEI. Intenta más tarde.', backButton);
   }
 });
