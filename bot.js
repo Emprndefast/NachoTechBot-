@@ -89,3 +89,38 @@ bot.on('message', async (msg) => {
     bot.sendMessage(chatId, 'Error al consultar el IMEI. Intenta más tarde.', backButton);
   }
 });
+
+// Evento: nuevo miembro se une al grupo o canal
+bot.on('new_chat_members', (msg) => {
+  const chatId = msg.chat.id;
+  const newMembers = msg.new_chat_members;
+  const groupName = msg.chat.title || 'nuestro grupo'; // Detecta nombre del grupo
+
+  newMembers.forEach((member) => {
+    const name = member.first_name || 'Usuario';
+    const userId = member.id;
+    const fecha = new Date();
+
+    const opcionesFecha = { timeZone: 'America/Santo_Domingo', hour12: false };
+    const fechaLocal = fecha.toLocaleDateString('es-DO', opcionesFecha);
+    const horaLocal = fecha.toLocaleTimeString('es-DO', opcionesFecha);
+
+    const mensajeBienvenida = 
+`👋🏻 ¡Bienvenido/a, ${name}!
+👀 Tu ID de Telegram es: ${userId}
+
+📅 Fecha: ${fechaLocal}
+🕒 Hora: ${horaLocal}
+
+🎉 Nos alegra tenerte aquí en *${groupName}*. ¡Esperamos que disfrutes tu estancia!
+
+📜 Asegúrate de revisar nuestras /reglas para mantener el ambiente ameno.
+
+Lamentablemente nuestro grupo anterior fue eliminado por Telegram, así que nuevamente estamos iniciando.
+
+📢 Nuevo Canal de Noticias: @SaulAntonioCanal
+👥 Nuevo Grupo: @SaulAntonioGrupo`;
+
+    bot.sendMessage(chatId, mensajeBienvenida, { parse_mode: 'Markdown' });
+  });
+});
