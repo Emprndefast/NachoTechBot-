@@ -6,7 +6,13 @@ const apiKey = process.env.IMEICHECK_API_KEY;
 
 const bot = new TelegramBot(token, { polling: true });
 
-// Menú de botones (lo reutilizamos en varios lugares)
+const borrarMensaje = (chatId, messageId, delay = 60000) => {
+  setTimeout(() => {
+    bot.deleteMessage(chatId, messageId).catch(() => {});
+  }, delay);
+};
+
+// Menú de botones
 const mainMenu = {
   reply_markup: {
     inline_keyboard: [
@@ -17,110 +23,105 @@ const mainMenu = {
   }
 };
 
-// Botón de volver al menú
 const backButton = {
   reply_markup: {
     inline_keyboard: [[{ text: '🔙 Volver al menú', callback_data: 'menu' }]]
   }
 };
 
-// /start muestra menú
+// /start
 bot.onText(/\/start/, (msg) => {
-  bot.sendMessage(msg.chat.id, '¡Bienvenido! Elige una opción o envía un IMEI para consultar.', mainMenu);
+  bot.sendMessage(msg.chat.id, '¡Bienvenido! Elige una opción o envía un IMEI para consultar.', mainMenu)
+    .then(m => borrarMensaje(m.chat.id, m.message_id));
 });
 
-// /menu también muestra el menú
+// /menu
 bot.onText(/\/menu/, (msg) => {
-  bot.sendMessage(msg.chat.id, 'Menú principal:', mainMenu);
+  bot.sendMessage(msg.chat.id, 'Menú principal:', mainMenu)
+    .then(m => borrarMensaje(m.chat.id, m.message_id));
 });
 
-// Respuesta a los botones
+// Botones
 bot.on('callback_query', (callbackQuery) => {
   const msg = callbackQuery.message;
   const data = callbackQuery.data;
 
   if (data === 'admins') {
-    bot.sendMessage(msg.chat.id, 'Equipo:\n- Admin: @lareddedios\n- Staff: @nt', backButton);
+    bot.sendMessage(msg.chat.id, '👤 Equipo:\n- 👑 Admin: @lareddedios\n- 🛠 Staff: @nt', backButton)
+      .then(m => borrarMensaje(m.chat.id, m.message_id));
   }
 
   if (data === 'tools') {
-    bot.sendMessage(msg.chat.id, 'Descarga nuestras herramientas aquí:\nhttps://wa.me/message/6JULVOWSKEVYM1', backButton);
+    bot.sendMessage(msg.chat.id, '🧰 Herramientas:\nhttps://wa.me/message/6JULVOWSKEVYM1', backButton)
+      .then(m => borrarMensaje(m.chat.id, m.message_id));
   }
 
   if (data === 'menu') {
-    bot.sendMessage(msg.chat.id, 'Menú principal:', mainMenu);
+    bot.sendMessage(msg.chat.id, '📲 Menú principal:', mainMenu)
+      .then(m => borrarMensaje(m.chat.id, m.message_id));
   }
 });
 
-// Manejo de mensajes para detectar IMEI
+// IMEI
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
+  const text = msg.text?.trim();
 
-  // Ignorar mensajes sin texto (como stickers o botones)
-  if (!msg.text) return;
+  if (!text || text.startsWith('/')) return;
+  if (!/^\d{14,15}$/.test(text)) return;
 
-  const imei = msg.text.trim();
-
-  // Verificar si es un IMEI válido
-  if (!/^\d{14,15}$/.test(imei)) return;
-
-  bot.sendMessage(chatId, `Consultando IMEI: ${imei}...`);
+  const consultMsg = await bot.sendMessage(chatId, `🔍 Consultando IMEI: ${text}...`);
+  borrarMensaje(chatId, consultMsg.message_id);
 
   try {
     const response = await axios.get(`https://alpha.imeicheck.com/api/modelBrandName`, {
-      params: {
-        imei: imei,
-        format: 'json'
-      },
-      headers: {
-        'Authorization': `Bearer ${apiKey}`
-      }
+      params: { imei: text, format: 'json' },
+      headers: { 'Authorization': `Bearer ${apiKey}` }
     });
 
     const data = response.data;
+    const resultText = (data && data.model && data.brand)
+      ? `✅ Resultado del IMEI:\n📱 Modelo: ${data.model}\n🏷 Marca: ${data.brand}`
+      : '⚠️ No se encontró información para este IMEI.';
 
-    if (data && data.model && data.brand) {
-      bot.sendMessage(chatId, `Resultado del IMEI:\nModelo: ${data.model}\nMarca: ${data.brand}`, backButton);
-    } else {
-      bot.sendMessage(chatId, 'No se encontró información para este IMEI.', backButton);
-    }
+    const resultMsg = await bot.sendMessage(chatId, resultText, backButton);
+    borrarMensaje(chatId, resultMsg.message_id);
   } catch (error) {
     console.error(error);
-    bot.sendMessage(chatId, 'Error al consultar el IMEI. Intenta más tarde.', backButton);
+    const errorMsg = await bot.sendMessage(chatId, '❌ Error al consultar el IMEI. Intenta más tarde.', backButton);
+    borrarMensaje(chatId, errorMsg.message_id);
   }
 });
 
-// Evento: nuevo miembro se une al grupo o canal
-bot.on('new_chat_members', (msg) => {
+// Bienvenida automática
+bot.on('new_chat_members', async (msg) => {
   const chatId = msg.chat.id;
-  const newMembers = msg.new_chat_members;
-  const groupName = msg.chat.title || 'nuestro grupo'; // Detecta nombre del grupo
+  const groupName = msg.chat.title || 'nuestro grupo';
+  const fecha = new Date();
 
-  newMembers.forEach((member) => {
+  const opcionesFecha = { timeZone: 'America/Santo_Domingo', hour12: false };
+  const fechaLocal = fecha.toLocaleDateString('es-DO', opcionesFecha);
+  const horaLocal = fecha.toLocaleTimeString('es-DO', opcionesFecha);
+
+  for (const member of msg.new_chat_members) {
     const name = member.first_name || 'Usuario';
     const userId = member.id;
-    const fecha = new Date();
 
-    const opcionesFecha = { timeZone: 'America/Santo_Domingo', hour12: false };
-    const fechaLocal = fecha.toLocaleDateString('es-DO', opcionesFecha);
-    const horaLocal = fecha.toLocaleTimeString('es-DO', opcionesFecha);
-
-    const mensajeBienvenida = 
+    const mensaje = 
 `👋🏻 ¡Bienvenido/a, ${name}!
-👀 Tu ID de Telegram es: ${userId}
+🆔 Tu ID de Telegram: ${userId}
 
 📅 Fecha: ${fechaLocal}
 🕒 Hora: ${horaLocal}
 
 🎉 Nos alegra tenerte aquí en *${groupName}*. ¡Esperamos que disfrutes tu estancia!
 
-📜 Asegúrate de revisar nuestras /reglas para mantener el ambiente ameno.
+📜 No olvides revisar nuestras /reglas para mantener el ambiente positivo.
 
-Lamentablemente nuestro grupo anterior fue eliminado por Telegram, así que nuevamente estamos iniciando.
+📢 Canal de Noticias: @NachoTechRD
+👥 Grupo Soporte: @NachoTechRDsoporte`;
 
-📢 Nuevo Canal de Noticias: @SaulAntonioCanal
-👥 Nuevo Grupo: @SaulAntonioGrupo`;
-
-    bot.sendMessage(chatId, mensajeBienvenida, { parse_mode: 'Markdown' });
-  });
+    const welcomeMsg = await bot.sendMessage(chatId, mensaje, { parse_mode: 'Markdown' });
+    borrarMensaje(chatId, welcomeMsg.message_id);
+  }
 });
