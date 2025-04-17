@@ -15,7 +15,7 @@ bot.onText(/\/start/, (msg) => {
       inline_keyboard: [
         [{ text: '👤 Admin & Staff', callback_data: 'admins' }],
         [{ text: '🧰 Descargar Tools', callback_data: 'tools' }],
-        [{ text: '📰 Canal Noticias', url: 'https://t.me/TuCanalAquí' }] // Reemplaza con tu canal real
+        [{ text: '📰 Canal Noticias', url: 'https://t.me/NachoTechRd' }] // Reemplaza con tu canal real
       ]
     }
   };
@@ -29,11 +29,11 @@ bot.on('callback_query', (callbackQuery) => {
   const data = callbackQuery.data;
 
   if (data === 'admins') {
-    bot.sendMessage(msg.chat.id, 'Equipo:\n- Admin: @AdminUser\n- Staff: @StaffUser'); // Reemplaza con tus usuarios reales
-  }
+    bot.sendMessage(msg.chat.id, 'Equipo:\n- Admin: @lareddedios\n- Staff: @StaffUser'); // Reemplaza con tus usuarios reales
+    }
 
   if (data === 'tools') {
-    bot.sendMessage(msg.chat.id, 'Descarga nuestras herramientas aquí:\nhttps://tusitio.com/tools.zip'); // Cambia el link por el tuyo
+    bot.sendMessage(msg.chat.id, 'Descarga nuestras herramientas aquí:\nhttps://wa.me/message/6JULVOWSKEVYM1'); // Cambia el link por el tuyo
   }
 });
 
