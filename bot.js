@@ -1,18 +1,12 @@
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 
-const token = process.env.TELEGRAM_TOKEN;
-const apiKey = process.env.IMEICHECK_API_KEY;
+const token = process.env.TELEGRAM_TOKEN;  // Tu token de Telegram
+const apiKey = 'dDM06yo6kv4MXNC2uXxs';  // Tu token IMEIDB
 
 const bot = new TelegramBot(token, { polling: true });
 
-const borrarMensaje = (chatId, messageId, delay = 60000) => {
-  setTimeout(() => {
-    bot.deleteMessage(chatId, messageId).catch(() => {});
-  }, delay);
-};
-
-// Menú de botones
+// Menú de botones (lo reutilizamos en varios lugares)
 const mainMenu = {
   reply_markup: {
     inline_keyboard: [
@@ -23,105 +17,113 @@ const mainMenu = {
   }
 };
 
+// Botón de volver al menú
 const backButton = {
   reply_markup: {
     inline_keyboard: [[{ text: '🔙 Volver al menú', callback_data: 'menu' }]]
   }
 };
 
-// /start
+// /start muestra menú
 bot.onText(/\/start/, (msg) => {
-  bot.sendMessage(msg.chat.id, '¡Bienvenido! Elige una opción o envía un IMEI para consultar.', mainMenu)
-    .then(m => borrarMensaje(m.chat.id, m.message_id));
+  bot.sendMessage(msg.chat.id, '¡Bienvenido! Elige una opción o envía un IMEI para consultar.', mainMenu);
 });
 
-// /menu
+// /menu también muestra el menú
 bot.onText(/\/menu/, (msg) => {
-  bot.sendMessage(msg.chat.id, 'Menú principal:', mainMenu)
-    .then(m => borrarMensaje(m.chat.id, m.message_id));
+  bot.sendMessage(msg.chat.id, 'Menú principal:', mainMenu);
 });
 
-// Botones
+// Respuesta a los botones
 bot.on('callback_query', (callbackQuery) => {
   const msg = callbackQuery.message;
   const data = callbackQuery.data;
 
   if (data === 'admins') {
-    bot.sendMessage(msg.chat.id, '👤 Equipo:\n- 👑 Admin: @lareddedios\n- 🛠 Staff: @nt', backButton)
-      .then(m => borrarMensaje(m.chat.id, m.message_id));
+    bot.sendMessage(msg.chat.id, 'Equipo:\n- Admin: @lareddedios\n- Staff: @nt', backButton);
   }
 
   if (data === 'tools') {
-    bot.sendMessage(msg.chat.id, '🧰 Herramientas:\nhttps://wa.me/message/6JULVOWSKEVYM1', backButton)
-      .then(m => borrarMensaje(m.chat.id, m.message_id));
+    bot.sendMessage(msg.chat.id, 'Descarga nuestras herramientas aquí:\nhttps://wa.me/message/6JULVOWSKEVYM1', backButton);
   }
 
   if (data === 'menu') {
-    bot.sendMessage(msg.chat.id, '📲 Menú principal:', mainMenu)
-      .then(m => borrarMensaje(m.chat.id, m.message_id));
+    bot.sendMessage(msg.chat.id, 'Menú principal:', mainMenu);
   }
 });
 
-// IMEI
+// Manejo de mensajes para detectar IMEI
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
-  const text = msg.text?.trim();
 
-  if (!text || text.startsWith('/')) return;
-  if (!/^\d{14,15}$/.test(text)) return;
+  // Ignorar mensajes sin texto (como stickers o botones)
+  if (!msg.text) return;
 
-  const consultMsg = await bot.sendMessage(chatId, `🔍 Consultando IMEI: ${text}...`);
-  borrarMensaje(chatId, consultMsg.message_id);
+  const imei = msg.text.trim();
+
+  // Verificar si es un IMEI válido
+  if (!/^\d{14,15}$/.test(imei)) return;
+
+  bot.sendMessage(chatId, `Consultando IMEI: ${imei}...`);
 
   try {
-    const response = await axios.get(`https://alpha.imeicheck.com/api/modelBrandName`, {
-      params: { imei: text, format: 'json' },
-      headers: { 'Authorization': `Bearer ${apiKey}` }
+    const response = await axios.get(`https://api.imeidb.xyz/v1/imei/${imei}`, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`
+      }
     });
 
     const data = response.data;
-    const resultText = (data && data.model && data.brand)
-      ? `✅ Resultado del IMEI:\n📱 Modelo: ${data.model}\n🏷 Marca: ${data.brand}`
-      : '⚠️ No se encontró información para este IMEI.';
 
-    const resultMsg = await bot.sendMessage(chatId, resultText, backButton);
-    borrarMensaje(chatId, resultMsg.message_id);
+    if (data && data.brand && data.model && data.color && data.status) {
+      bot.sendMessage(chatId, 
+        `📱 *Resultado del IMEI*\n\n` +
+        `🔹 *Marca:* ${data.brand}\n` +
+        `🔹 *Modelo:* ${data.model}\n` +
+        `🎨 *Color:* ${data.color || 'No disponible'}\n` +
+        `🔐 *Estado:* ${data.status || 'Desconocido'}`, 
+        { parse_mode: 'Markdown', ...backButton }
+      );
+    } else {
+      bot.sendMessage(chatId, 'No se encontró información para este IMEI.', backButton);
+    }
   } catch (error) {
-    console.error(error);
-    const errorMsg = await bot.sendMessage(chatId, '❌ Error al consultar el IMEI. Intenta más tarde.', backButton);
-    borrarMensaje(chatId, errorMsg.message_id);
+    console.error(error.response?.data || error.message);
+    bot.sendMessage(chatId, 'Error al consultar el IMEI. Intenta más tarde.', backButton);
   }
 });
 
-// Bienvenida automática
-bot.on('new_chat_members', async (msg) => {
+// Evento: nuevo miembro se une al grupo o canal
+bot.on('new_chat_members', (msg) => {
   const chatId = msg.chat.id;
-  const groupName = msg.chat.title || 'nuestro grupo';
-  const fecha = new Date();
+  const newMembers = msg.new_chat_members;
+  const groupName = msg.chat.title || 'nuestro grupo'; // Detecta nombre del grupo
 
-  const opcionesFecha = { timeZone: 'America/Santo_Domingo', hour12: false };
-  const fechaLocal = fecha.toLocaleDateString('es-DO', opcionesFecha);
-  const horaLocal = fecha.toLocaleTimeString('es-DO', opcionesFecha);
-
-  for (const member of msg.new_chat_members) {
+  newMembers.forEach((member) => {
     const name = member.first_name || 'Usuario';
     const userId = member.id;
+    const fecha = new Date();
 
-    const mensaje = 
+    const opcionesFecha = { timeZone: 'America/Santo_Domingo', hour12: false };
+    const fechaLocal = fecha.toLocaleDateString('es-DO', opcionesFecha);
+    const horaLocal = fecha.toLocaleTimeString('es-DO', opcionesFecha);
+
+    const mensajeBienvenida = 
 `👋🏻 ¡Bienvenido/a, ${name}!
-🆔 Tu ID de Telegram: ${userId}
+👀 Tu ID de Telegram es: ${userId}
 
 📅 Fecha: ${fechaLocal}
 🕒 Hora: ${horaLocal}
 
 🎉 Nos alegra tenerte aquí en *${groupName}*. ¡Esperamos que disfrutes tu estancia!
 
-📜 No olvides revisar nuestras /reglas para mantener el ambiente positivo.
+📜 Asegúrate de revisar nuestras /reglas para mantener el ambiente Sano.
 
-📢 Canal de Noticias: @NachoTechRD
-👥 Grupo Soporte: @NachoTechRDsoporte`;
+.
 
-    const welcomeMsg = await bot.sendMessage(chatId, mensaje, { parse_mode: 'Markdown' });
-    borrarMensaje(chatId, welcomeMsg.message_id);
-  }
+📢 Nuevo Canal de Noticias: @NachoTechRD
+👥 Nuevo Grupo: @NachoTechRDsoporte`;
+
+    bot.sendMessage(chatId, mensajeBienvenida, { parse_mode: 'Markdown' });
+  });
 });
