@@ -1,112 +1,74 @@
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 
-const token = process.env.TELEGRAM_TOKEN;  // Tu token de Telegram
-const apiKey = 'dDM06yo6kv4MXNC2uXxs';  // Tu token IMEIDB
+const token = process.env.TELEGRAM_TOKEN;
+const sickwApiKey = '3TI-MD8-GCQ-UHM-BGI-FRA-5I6-1GD';
+const sickwServiceID = '3';
+const format = 'beta';
 
 const bot = new TelegramBot(token, { polling: true });
 
-// Menú de botones (lo reutilizamos en varios lugares)
 const mainMenu = {
   reply_markup: {
     inline_keyboard: [
       [{ text: '👤 Admin & Staff', callback_data: 'admins' }],
       [{ text: '🧰 Descargar Tools', callback_data: 'tools' }],
+      [{ text: '💰 Consultar Balance', callback_data: 'balance' }],
       [{ text: '📰 Canal Noticias', url: 'https://t.me/NachoTechRd' }]
     ]
   }
 };
 
-// Botón de volver al menú
 const backButton = {
   reply_markup: {
     inline_keyboard: [[{ text: '🔙 Volver al menú', callback_data: 'menu' }]]
   }
 };
 
-// /start muestra menú
 bot.onText(/\/start/, (msg) => {
   bot.sendMessage(msg.chat.id, '¡Bienvenido! Elige una opción o envía un IMEI para consultar.', mainMenu);
 });
 
-// /menu también muestra el menú
 bot.onText(/\/menu/, (msg) => {
   bot.sendMessage(msg.chat.id, 'Menú principal:', mainMenu);
 });
 
-// Respuesta a los botones
-bot.on('callback_query', (callbackQuery) => {
+bot.on('callback_query', async (callbackQuery) => {
   const msg = callbackQuery.message;
   const data = callbackQuery.data;
 
   if (data === 'admins') {
-    bot.sendMessage(msg.chat.id, 'Equipo:\n- Admin: @lareddedios\n- Staff: @nt', backButton);
+    bot.sendMessage(msg.chat.id, '👨‍💻 Equipo:\n- Admin: @lareddedios\n- Staff: @nt', backButton);
   }
 
   if (data === 'tools') {
-    bot.sendMessage(msg.chat.id, 'Descarga nuestras herramientas aquí:\nhttps://wa.me/message/6JULVOWSKEVYM1', backButton);
+    bot.sendMessage(msg.chat.id, '🧰 Herramientas disponibles:\nhttps://wa.me/message/6JULVOWSKEVYM1', backButton);
   }
 
   if (data === 'menu') {
     bot.sendMessage(msg.chat.id, 'Menú principal:', mainMenu);
   }
-});
 
-// Manejo de mensajes para detectar IMEI
-bot.on('message', async (msg) => {
-  const chatId = msg.chat.id;
-
-  // Ignorar mensajes sin texto (como stickers o botones)
-  if (!msg.text) return;
-
-  const imei = msg.text.trim();
-
-  // Verificar si es un IMEI válido
-  if (!/^\d{14,15}$/.test(imei)) return;
-
-  bot.sendMessage(chatId, `Consultando IMEI: ${imei}...`);
-
-  try {
-    const response = await axios.get(`https://api.imeidb.xyz/v1/imei/${imei}`, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`
-      }
-    });
-
-    const data = response.data;
-
-    if (data && data.brand && data.model && data.color && data.status) {
-      bot.sendMessage(chatId, 
-        `📱 *Resultado del IMEI*\n\n` +
-        `🔹 *Marca:* ${data.brand}\n` +
-        `🔹 *Modelo:* ${data.model}\n` +
-        `🎨 *Color:* ${data.color || 'No disponible'}\n` +
-        `🔐 *Estado:* ${data.status || 'Desconocido'}`, 
-        { parse_mode: 'Markdown', ...backButton }
-      );
-    } else {
-      bot.sendMessage(chatId, 'No se encontró información para este IMEI.', backButton);
+  if (data === 'balance') {
+    try {
+      const response = await axios.get(`https://sickw.com/api.php?action=balance&key=${sickwApiKey}`);
+      const balance = response.data;
+      bot.sendMessage(msg.chat.id, `💰 *Balance actual de Sickw:*\n${balance} créditos`, { parse_mode: 'Markdown' });
+    } catch (error) {
+      bot.sendMessage(msg.chat.id, '⚠️ Error al consultar el balance.', backButton);
     }
-  } catch (error) {
-    console.error('Error al consultar el IMEI:', error.message);
-    if (error.response) {
-      console.error('Detalles de la respuesta de la API:', error.response.data);
-    }
-    bot.sendMessage(chatId, 'Error al consultar el IMEI. Intenta más tarde.', backButton);
   }
 });
 
-// Evento: nuevo miembro se une al grupo o canal
 bot.on('new_chat_members', (msg) => {
   const chatId = msg.chat.id;
   const newMembers = msg.new_chat_members;
-  const groupName = msg.chat.title || 'nuestro grupo'; // Detecta nombre del grupo
+  const groupName = msg.chat.title || 'nuestro grupo';
 
   newMembers.forEach((member) => {
     const name = member.first_name || 'Usuario';
     const userId = member.id;
     const fecha = new Date();
-
     const opcionesFecha = { timeZone: 'America/Santo_Domingo', hour12: false };
     const fechaLocal = fecha.toLocaleDateString('es-DO', opcionesFecha);
     const horaLocal = fecha.toLocaleTimeString('es-DO', opcionesFecha);
@@ -120,13 +82,50 @@ bot.on('new_chat_members', (msg) => {
 
 🎉 Nos alegra tenerte aquí en *${groupName}*. ¡Esperamos que disfrutes tu estancia!
 
-📜 Asegúrate de revisar nuestras /reglas para mantener el ambiente Sano.
+📜 Asegúrate de revisar nuestras /reglas para mantener el ambiente sano y respetuoso.
 
-.
+🚀 Este es un nuevo comienzo lleno de oportunidades. ¡Gracias por ser parte!
 
-📢 Nuevo Canal de Noticias: @NachoTechRD
-👥 Nuevo Grupo: @NachoTechRDsoporte`;
+📢 Noticias: @NachoTechRD
+👥 Soporte: @NachoTechRDsoporte`;
 
-    bot.sendMessage(chatId, mensajeBienvenida, { parse_mode: 'Markdown' });
+    bot.sendMessage(chatId, mensajeBienvenida, { parse_mode: 'Markdown' }).then(sent => {
+      setTimeout(() => {
+        bot.deleteMessage(chatId, sent.message_id).catch(() => {});
+      }, 60 * 1000);
+    });
   });
+});
+
+bot.on('message', async (msg) => {
+  const chatId = msg.chat.id;
+  if (!msg.text || msg.text.startsWith('/')) return;
+
+  const imei = msg.text.trim();
+  if (!/^\d{14,15}$/.test(imei)) return;
+
+  bot.sendMessage(chatId, `🔍 Consultando IMEI: *${imei}*...`, { parse_mode: 'Markdown' });
+
+  try {
+    const url = `https://sickw.com/api.php?format=${format}&key=${sickwApiKey}&imei=${imei}&service=${sickwServiceID}`;
+    const response = await axios.get(url);
+
+    const data = response.data;
+    if (data.status === 'success') {
+      const r = data.result;
+      const respuesta = 
+`📱 *Resultado del IMEI:*
+🆔 IMEI: ${r.IMEI}
+🏭 Marca: ${r.Manufacturer}
+📦 Modelo: ${r['Model Name']}
+🔢 Código Modelo: ${r['Model Code']}`;
+
+      bot.sendMessage(chatId, respuesta, { parse_mode: 'Markdown' });
+    } else {
+      bot.sendMessage(chatId, '❌ No se encontró información o el servicio no es instantáneo.', backButton);
+    }
+  } catch (error) {
+    console.error(error);
+    bot.sendMessage(chatId, '⚠️ Error al consultar el IMEI. Intenta más tarde.', backButton);
+  }
 });
