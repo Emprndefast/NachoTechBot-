@@ -14,7 +14,8 @@ const mainMenu = {
       [{ text: '👤 Admin & Staff', callback_data: 'admins' }],
       [{ text: '🧰 Descargar Tools', callback_data: 'tools' }],
       [{ text: '💰 Consultar Balance', callback_data: 'balance' }],
-      [{ text: '📰 Canal Noticias', url: 'https://t.me/NachoTechRd' }]
+      [{ text: '📰 Canal Noticias', url: 'https://t.me/NachoTechRd' }],
+      [{ text: '📋 Lista de Servicios', callback_data: 'services' }]  // Nueva opción en el menú
     ]
   }
 };
@@ -57,6 +58,32 @@ bot.on('callback_query', async (callbackQuery) => {
     } catch (error) {
       bot.sendMessage(msg.chat.id, '⚠️ Error al consultar el balance.', backButton);
     }
+  }
+
+  // Nueva opción para mostrar la lista de servicios
+  if (data === 'services') {
+    const services = [
+      { name: 'APPLE SOLD BY & COVERAGE', price: '2.40' },
+      { name: 'SAMSUNG INFO - PRO', price: '0.10' },
+      { name: 'iCLOUD ON/OFF', price: '0.02' },
+      { name: 'iCLOUD CLEAN/LOST', price: '0.03' },
+      { name: 'WW BLACKLIST STATUS - PRO', price: '0.09' },
+      { name: 'iPHONE SIM-LOCK', price: '0.025' },
+      { name: 'VERIZON USA STATUS - PRO', price: '0.05' },
+      { name: 'APPLE ACTIVATION STATUS - IMEI/SN', price: '0.03' },
+      { name: 'IMEI ⇄ SN CONVERT', price: '0.025' },
+      { name: 'MOTOROLA INFO', price: '0.08' },
+      { name: 'HUAWEI INFO', price: '0.10' },
+      { name: 'ALCATEL INFO', price: '0.10' },
+      // Continúa agregando los servicios aquí...
+    ];
+
+    let servicesMessage = '🔧 *Lista de Servicios Disponibles:*\n\n';
+    services.forEach(service => {
+      servicesMessage += `🛠️ *${service.name}* - 💰 Precio: ${service.price} USD\n`;
+    });
+
+    bot.sendMessage(msg.chat.id, servicesMessage, { parse_mode: 'Markdown', reply_markup: backButton.reply_markup });
   }
 });
 
